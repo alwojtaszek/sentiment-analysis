@@ -24,7 +24,11 @@ word2vec = gensim.models.Word2Vec(vector_size=100, window=3, min_count=2, sg=1)
 tfidf_vectorizer = TfidfVectorizer(max_df=0.95, min_df=5, max_features=1000, stop_words='english')
 
 # Define a comprehensive set of English stopwords
-stop_words = set(stopwords.words('english'))
+stop_words = set(stopwords.words('english')).union({
+    "didnt", "dont", "cant", "wont", "im", "ive", "isnt", "arent", "wasnt", "werent", "hasnt", "havent",
+    "hadnt", "doesnt", "couldnt", "shouldnt", "mightnt", "mustnt"
+})
+
 
 def get_data(url='data/train.txt'):
     """
@@ -58,7 +62,7 @@ def preprocess(text):
     return tokens
 
 
-def embed_sentence(sentence):
+def embed_sentence(sentence, word2vec_mdl):
     """
     Averages Word2Vec vectors of the words in a sentence to create a single vector.
 
@@ -68,8 +72,8 @@ def embed_sentence(sentence):
     Returns:
     - ndarray: The averaged vector of the sentence.
     """
-    vecs = [word2vec.wv[word] for word in sentence if word in word2vec.wv]
-    return np.mean(vecs, axis=0) if vecs else np.zeros(word2vec.vector_size)
+    vecs = [word2vec_mdl.wv[word] for word in sentence if word in word2vec_mdl.wv]
+    return np.mean(vecs, axis=0) if vecs else np.zeros(word2vec_mdl.vector_size)
 
 
 # Data loading and preprocessing
@@ -81,7 +85,7 @@ tfidf_features = tfidf_vectorizer.fit_transform(sentences)
 word2vec.build_vocab(sentences)
 
 # Feature engineering
-sentence_vectors = np.array([embed_sentence(s.split()) for s in sentences])
+sentence_vectors = np.array([embed_sentence(s.split(), word2vec_mdl=word2vec) for s in sentences])
 word2vec_sparse = csr_matrix(sentence_vectors)
 
 combined_features = hstack([tfidf_features, word2vec_sparse])
@@ -90,5 +94,3 @@ combined_features = hstack([tfidf_features, word2vec_sparse])
 label_encoder = LabelEncoder()
 y_train, y_test = label_encoder.fit_transform(train['sentiment']), label_encoder.transform(test['sentiment'])
 x_train, x_test = combined_features[:len(train)], combined_features[len(train):]
-
-
